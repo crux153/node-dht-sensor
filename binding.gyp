@@ -6,7 +6,7 @@
       "include_dirs": [
         "<!(node -e \"require('nan')\")"
       ],
-      "libraries": [ "-lbcm2835" ],
+      "libraries": [ "-lwiringPi" ],
       "conditions": [
         ["OS=='linux'", {
           "include_dirs+": "/usr/local/lib/libbcm2835.a",
