@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/time.h>
-#include <bcm2835.h>
+#include <wiringPi.h>
 #include <unistd.h>
 
 #define BCM2708_PERI_BASE   0x20000000
@@ -53,24 +53,24 @@ long readDHT(int type, int pin, float &temperature, float &humidity)
   }
 
 	// request sensor data
-	bcm2835_gpio_fsel(pin, BCM2835_GPIO_FSEL_OUTP);
-	bcm2835_gpio_write(pin, HIGH);
+	pinMode (pin, OUTPUT);
+	digitalWrite(pin, HIGH);
 	usleep(10000);
-	bcm2835_gpio_write(pin, LOW);
+	digitalWrite(pin, LOW);
 	usleep(type == 11 ? 2500 : 800);
-	bcm2835_gpio_write(pin, HIGH);
-  bcm2835_gpio_fsel(pin, BCM2835_GPIO_FSEL_INPT);
+	digitalWrite(pin, HIGH);
+    pinMode (pin, INPUT);
 
 	// wait for sensor response
-	for (timeout = 0; timeout < 1000000 && bcm2835_gpio_lev(pin) == LOW; ++timeout);
+	for (timeout = 0; timeout < 1000000 && digitalRead(pin) == LOW; ++timeout);
 	if (timeout >= 100000) return -3;
-	for (timeout = 0; timeout < 1000000 && bcm2835_gpio_lev(pin) == HIGH; ++timeout);
+	for (timeout = 0; timeout < 1000000 && digitalRead(pin) == HIGH; ++timeout);
 	if (timeout >= 100000) return -3;
 
 	// read data
 	for (j = 0; j < MAXTIMINGS; ++j) {
-		for (timeout = 0; bcm2835_gpio_lev(pin) == LOW && timeout < 50000; ++timeout);
-		for (timeout = 0; bcm2835_gpio_lev(pin) == HIGH && timeout < 50000; ++timeout);
+		for (timeout = 0; digitalRead(pin) == LOW && timeout < 50000; ++timeout);
+		for (timeout = 0; digitalRead(pin) == HIGH && timeout < 50000; ++timeout);
 		bits[j] = timeout;
 		if (timeout >= 50000) break;
 	}
@@ -181,22 +181,10 @@ long readDHT(int type, int pin, float &temperature, float &humidity)
 
 int initialize()
 {
-  if (!bcm2835_init())
-  {
-		#ifdef VERBOSE
-    printf("BCM2835 initialization failed.\n");
-		#endif
-    return 1;
-  }
-  else
-  {
-		#ifdef VERBOSE
-    printf("BCM2835 initialized.\n");
-		#endif
+  wiringPiSetup();
     initialized = 1;
     memset(last_read, 0, sizeof(unsigned long long)*32);
-		memset(last_temperature, 0, sizeof(float)*32);
-		memset(last_humidity, 0, sizeof(float)*32);
+    memset(last_temperature, 0, sizeof(float)*32);
+    memset(last_humidity, 0, sizeof(float)*32);
     return 0;
-  }
 }
