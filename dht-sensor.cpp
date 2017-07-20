@@ -133,7 +133,7 @@ long readDHT(int type, int pin, float &temperature, float &humidity)
       humidity = data[0];
     }
 
-    for (timeout = 0; timeout < 1000000 && bcm2835_gpio_lev(pin) == HIGH; ++timeout);
+    for (timeout = 0; timeout < 1000000 && digitalRead(pin) == HIGH; ++timeout);
     if (timeout >= 100000)
     {
         #ifdef VERBOSE
@@ -150,8 +150,8 @@ long readDHT(int type, int pin, float &temperature, float &humidity)
     // read data
     for (bitCount = 0; bitCount < MAXTIMINGS; ++bitCount)
     {
-        for (timeout = 0; bcm2835_gpio_lev(pin) == LOW && timeout < 50000; ++timeout);
-        for (timeout = 0; bcm2835_gpio_lev(pin) == HIGH && timeout < 50000; ++timeout);
+        for (timeout = 0; digitalRead(pin) == LOW && timeout < 50000; ++timeout);
+        for (timeout = 0; digitalRead(pin) == HIGH && timeout < 50000; ++timeout);
         bits[bitCount] = timeout;
         if (timeout >= 50000) break;
     }
