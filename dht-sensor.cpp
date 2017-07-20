@@ -240,22 +240,10 @@ long readDHT(int type, int pin, float &temperature, float &humidity)
 
 int initialize()
 {
-    if (!wiringPiSetup())
-    {
-        #ifdef VERBOSE
-        puts("WiringPi initialization failed.");
-        #endif
-        return 1;
-    }
-    else
-    {
-        #ifdef VERBOSE
-        puts("WiringPi initialized.");
-        #endif
-        initialized = 1;
-        memset(last_read, 0, sizeof(unsigned long long)*32);
-        memset(last_temperature, 0, sizeof(float)*32);
-        memset(last_humidity, 0, sizeof(float)*32);
-        return 0;
-    }
+    wiringPiSetup();
+    initialized = 1;
+    memset(last_read, 0, sizeof(unsigned long long)*32);
+    memset(last_temperature, 0, sizeof(float)*32);
+    memset(last_humidity, 0, sizeof(float)*32);
+    return 0;
 }
