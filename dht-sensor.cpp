@@ -26,30 +26,39 @@ unsigned long long getTime()
 
 long readDHT(int type, int pin, float &temperature, float &humidity)
 {
-	int bitCount = 0;
-	int timeout;
-	int bits[MAXTIMINGS];
-	int data[MAXTIMINGS / 8] = {};
+    int bitCount = 0;
+    int timeout;
+    int bits[MAXTIMINGS];
+    int data[MAXTIMINGS / 8] = {};
 
-	#ifdef VERBOSE
-	FILE *pTrace = fopen("dht-sensor.log", "a");
-	if (pTrace == NULL) {
-		puts("WARNING: unable to initialize trace file.");
-	}
-	#endif
+    #ifdef VERBOSE
+    #ifdef DBG_CONSOLE
+    FILE *pTrace = stdout;
+    #else
+    FILE *pTrace = fopen("dht-sensor.log", "a");
+    if (pTrace == NULL)
+    {
+        puts("WARNING: unable to initialize trace file, it will be redirected to stdout.");
+        pTrace = stdout;
+    }
+    #endif
+    #endif
 
-	// throttle sensor reading
-  unsigned long long now = getTime();
-  if (now - last_read[pin] < 2000) {
-		#ifdef VERBOSE
-		fprintf(pTrace, "too early to read again pin %d: %llu\n", pin, now - last_read[pin]);
-		#endif
-		temperature = last_temperature[pin];
-		humidity = last_humidity[pin];
-		return 0;
-  } else {
-     last_read[pin] = now + 420;
-  }
+    #ifdef VERBOSE
+    fprintf(pTrace, "start sensor read (type=%d, pin=%d).\n", type, pin);
+    #endif
+
+    // throttle sensor reading - if last read was less than 2s then return same
+    unsigned long long now = getTime();
+    if ((last_read[pin] > 0) && (now - last_read[pin] < 3000))
+    {
+        #ifdef VERBOSE
+        fprintf(pTrace, "*** too early to read again pin %d: %llu\n", pin, now - last_read[pin]);
+        #endif
+        temperature = last_temperature[pin];
+        humidity = last_humidity[pin];
+        return 0;
+    }
 
 	// request sensor data
 	pinMode (pin, OUTPUT);
@@ -58,79 +67,21 @@ long readDHT(int type, int pin, float &temperature, float &humidity)
 	digitalWrite(pin, LOW);
 	usleep(type == 11 ? 2500 : 800);
 	digitalWrite(pin, HIGH);
-    pinMode (pin, INPUT);
+	pinMode (pin, INPUT);
 
-	// wait for sensor response
-	for (timeout = 0; timeout < 1000000 && digitalRead(pin) == LOW; ++timeout);
-	if (timeout >= 100000) return -3;
-	for (timeout = 0; timeout < 1000000 && digitalRead(pin) == HIGH; ++timeout);
-	if (timeout >= 100000) return -3;
-
-	// read data
-	for (bitCount = 0; bitCount < MAXTIMINGS; ++bitCount) {
-		for (timeout = 0; digitalRead(pin) == LOW && timeout < 50000; ++timeout);
-		for (timeout = 0; digitalRead(pin) == HIGH && timeout < 50000; ++timeout);
-		bits[bitCount] = timeout;
-		if (timeout >= 50000) break;
-	}
-
-	// data decoding, get widest pulse
-	int peak = bits[1];
-	#ifdef VERBOSE
-	fprintf(pTrace, "init peak: %d\n", bits[1]);
-	#endif
-	for (int i = 2; i < bitCount; ++i) {
-		if (peak < bits[i]) {
-			peak = bits[i];
-			#ifdef VERBOSE
-				fprintf(pTrace, "update peak: %d (%d)\n", i, bits[i]);
-			#endif
-		}
-	}
-
-	// convert pulses to bits
-	#ifdef VERBOSE
-	fprintf(pTrace, "j=%d, peak=%d:\n", bitCount, peak);
-	#endif
-	int k = 0;
-	for (int i = 1; i < bitCount; ++i) {
-		data[k] <<= 1;
-		if ((2 * bits[i] - peak) > 0) {
-			data[k] |= 1;
-			#ifdef VERBOSE
-			fprintf(pTrace, "1 (%03d) ", bits[i]);
-		} else {
-			fprintf(pTrace, "0 (%03d) ", bits[i]);
-			#endif
-		}
-		if (i % 8 == 0) {
-			k++;
-			#ifdef VERBOSE
-			fprintf(pTrace, "\n");
-			#endif
-		}
-	}
-
-	// crc checking
-	#ifdef VERBOSE
-	int crc = ((data[0] + data[1] + data[2] + data[3]) & 0xff);
-	fprintf(pTrace, "\n=> %x %x %x %x (%x/%x) : %s\n",
-		data[0], data[1], data[2], data[3], data[4],
-		crc, (data[4] == crc) ? "OK" : "ERR");
-	#endif
-
-  if ((bitCount >= 41) && (data[4] == ((data[0] + data[1] + data[2] + data[3]) & 0xff)))
-  {
-		#ifdef VERBOSE
-    fprintf(pTrace, "[Sensor type = %d] ", type);
-		#endif
-
-    if (type == DHT11) {
-			#ifdef VERBOSE
-      printf("Temp = %d C, Hum = %d %%\n", data[2], data[0]);
-			#endif
-      temperature = data[2];
-      humidity = data[0];
+    // wait for sensor response
+    for (timeout = 0; timeout < 1000000 && digitalRead(pin) == LOW; ++timeout);
+    if (timeout >= 100000)
+    {
+        #ifdef VERBOSE
+        fprintf(pTrace, "*** timeout #1\n");
+        #ifdef DBG_CONSOLE
+        fflush(pTrace);
+        #else
+        fclose(pTrace);
+        #endif
+        #endif
+        return -3;
     }
 
     for (timeout = 0; timeout < 1000000 && digitalRead(pin) == HIGH; ++timeout);
@@ -289,10 +240,22 @@ long readDHT(int type, int pin, float &temperature, float &humidity)
 
 int initialize()
 {
-    wiringPiSetup();
-    initialized = 1;
-    memset(last_read, 0, sizeof(unsigned long long)*32);
-    memset(last_temperature, 0, sizeof(float)*32);
-    memset(last_humidity, 0, sizeof(float)*32);
-    return 0;
+    if (!wiringPiSetup())
+    {
+        #ifdef VERBOSE
+        puts("WiringPi initialization failed.");
+        #endif
+        return 1;
+    }
+    else
+    {
+        #ifdef VERBOSE
+        puts("WiringPi initialized.");
+        #endif
+        initialized = 1;
+        memset(last_read, 0, sizeof(unsigned long long)*32);
+        memset(last_temperature, 0, sizeof(float)*32);
+        memset(last_humidity, 0, sizeof(float)*32);
+        return 0;
+    }
 }
