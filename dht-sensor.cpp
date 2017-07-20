@@ -26,7 +26,7 @@ unsigned long long getTime()
 
 long readDHT(int type, int pin, float &temperature, float &humidity)
 {
-	int j = 0;
+	int bitCount = 0;
 	int timeout;
 	int bits[MAXTIMINGS];
 	int data[MAXTIMINGS / 8] = {};
@@ -67,10 +67,10 @@ long readDHT(int type, int pin, float &temperature, float &humidity)
 	if (timeout >= 100000) return -3;
 
 	// read data
-	for (j = 0; j < MAXTIMINGS; ++j) {
+	for (bitCount = 0; bitCount < MAXTIMINGS; ++bitCount) {
 		for (timeout = 0; digitalRead(pin) == LOW && timeout < 50000; ++timeout);
 		for (timeout = 0; digitalRead(pin) == HIGH && timeout < 50000; ++timeout);
-		bits[j] = timeout;
+		bits[bitCount] = timeout;
 		if (timeout >= 50000) break;
 	}
 
@@ -79,7 +79,7 @@ long readDHT(int type, int pin, float &temperature, float &humidity)
 	#ifdef VERBOSE
 	fprintf(pTrace, "init peak: %d\n", bits[1]);
 	#endif
-	for (int i = 2; i < j; ++i) {
+	for (int i = 2; i < bitCount; ++i) {
 		if (peak < bits[i]) {
 			peak = bits[i];
 			#ifdef VERBOSE
@@ -90,10 +90,10 @@ long readDHT(int type, int pin, float &temperature, float &humidity)
 
 	// convert pulses to bits
 	#ifdef VERBOSE
-	fprintf(pTrace, "j=%d, peak=%d:\n", j, peak);
+	fprintf(pTrace, "j=%d, peak=%d:\n", bitCount, peak);
 	#endif
 	int k = 0;
-	for (int i = 1; i < j; ++i) {
+	for (int i = 1; i < bitCount; ++i) {
 		data[k] <<= 1;
 		if ((2 * bits[i] - peak) > 0) {
 			data[k] |= 1;
@@ -119,7 +119,7 @@ long readDHT(int type, int pin, float &temperature, float &humidity)
 		crc, (data[4] == crc) ? "OK" : "ERR");
 	#endif
 
-  if ((j >= 41) && (data[4] == ((data[0] + data[1] + data[2] + data[3]) & 0xff)))
+  if ((bitCount >= 41) && (data[4] == ((data[0] + data[1] + data[2] + data[3]) & 0xff)))
   {
 		#ifdef VERBOSE
     fprintf(pTrace, "[Sensor type = %d] ", type);
