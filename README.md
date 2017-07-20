@@ -9,9 +9,11 @@ $ npm install node-dht-sensor
 
 ## Usage
 
-This module depends on the [BCM2835](http://www.airspayce.com/mikem/bcm2835/) library that must be installed on your board before you can actually use this module.
+This module depends on the [wiringPi](http://wiringpi.com/download-and-install/) library that must be installed on your board before you can actually use this module.
 
-To initialize the sensor, you have to specify the sensor type and the [GPIO pin](https://www.raspberrypi.org/documentation/usage/gpio/) where the sensor is connected to. It should work for DHT11, DHT22 and AM2302 sensors.
+WiringPi requires access to /open/mem. Because of this, you will typically run node with admin privileges.
+
+To initialize the sensor, you have to specify the sensor type and the [wiringPi PIN number](http://wiringpi.com/pins/) where the sensor is connected to. It should work for DHT11, DHT22 and AM2302 sensors.
 
 You should use sensorType value to match the sensor as follows:
 
@@ -46,8 +48,8 @@ sensor.read(22, 4, function(err, temperature, humidity) {
 
 The following example shows a method for querying multiple sensors connected to the same Raspberry Pi. For this example, we have two sensors:
 
-1. A DHT11 sensor connected to GPIO 17
-2. High-resolution DHT22 sensor connected to GPIO 4
+1. A DHT11 sensor connected to GPIO0
+2. High-resolution DHT22 sensor connected to GPIO7
 
 ``` javascript
 var sensorLib = require("node-dht-sensor");
@@ -56,17 +58,17 @@ var sensor = {
     sensors: [ {
         name: "Indoor",
         type: 11,
-        pin: 17
+        pin: 0
     }, {
         name: "Outdoor",
         type: 22,
-        pin: 4
+        pin: 7
     } ],
     read: function() {
         for (var a in this.sensors) {
             var b = sensorLib.read(this.sensors[a].type, this.sensors[a].pin);
             console.log(this.sensors[a].name + ": " +
-              b.temperature.toFixed(1) + "Â°C, " +
+              b.temperature.toFixed(1) + "¡ÆC, " +
               b.humidity.toFixed(1) + "%");
         }
         setTimeout(function() {
@@ -129,7 +131,7 @@ Please note that you may have to use armv6l instead of arm7l if you have an earl
 
 [1]: Node.js latest release - http://nodejs.org/dist/latest/
 
-[2]: BCM2835 - http://www.airspayce.com/mikem/bcm2835/
+[2]: wiringPi - http://wiringpi.com/download-and-install/
 
 [3]: Node.js native addon build tool - https://github.com/TooTallNate/node-gyp
 
